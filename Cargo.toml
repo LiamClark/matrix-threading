@@ -5,3 +5,4 @@ authors = ["LC <L.A.Clark@student.tudelft.nl>"]
 
 [dependencies]
 crossbeam = "0.2"
+rayon =     "0.4"

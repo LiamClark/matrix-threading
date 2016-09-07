@@ -1,0 +1,4 @@
+test tests::bench_functional       ... bench:  33,175,736 ns/iter (+/- 3,668,693)
+test tests::bench_parallel_cute    ... bench:  10,865,166 ns/iter (+/- 722,006)
+test tests::bench_parallel_sharing ... bench:  54,350,516 ns/iter (+/- 8,659,061)
+test tests::bench_procedural       ... bench:  10,682,745 ns/iter (+/- 1,823,937)
