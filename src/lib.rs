@@ -2,8 +2,41 @@
 extern crate test;
 extern crate crossbeam;
 extern crate rayon;
+extern crate scoped_threadpool;
+use scoped_threadpool::Pool;
+use std::sync::mpsc::channel;
 
 use rayon::prelude::*;
+
+
+fn sum_thread_pool(pool: &mut Pool, matrix: &Vec<Vec<i32>>, thread_count: usize) -> i32 {
+    let chunk_size = matrix.len().checked_div(thread_count).unwrap();
+    let matrix_chunks: Vec<&[Vec<i32>]> = matrix.chunks(chunk_size).collect();
+
+    let (tx, rx) = channel();
+    for data in matrix_chunks {
+        let thread_tx = tx.clone();
+        pool.scoped(|scope| {
+            scope.execute(move || {
+                let mut sum = 0;
+                for vec in data {
+                    for i in vec {
+                        if i % 2 != 0 {
+                            sum += 1;
+                        }
+                    }
+                }
+                thread_tx.send(sum).unwrap()
+            });
+        });
+    }
+    let mut sum = 0;
+    for _ in 0..thread_count {
+            sum += rx.recv().unwrap()
+    }
+
+    sum
+}
 
 fn sum_odd_serial(matrix: &Vec<Vec<i32>>) -> i32 {
     let mut sum = 0;
@@ -128,7 +161,9 @@ mod tests {
     use sum_parallel_good;
     use sum_rayon;
     use sum_rayon_flat;
+    use sum_thread_pool;
     use test::Bencher;
+    use scoped_threadpool::Pool;
 
     static N: i32 = 1000;
 
@@ -178,8 +213,17 @@ mod tests {
         let mat = giant_matrix(N as usize);
 
         b.iter(|| {
-
             sum_rayon_flat(&mat)
+        })
+    }
+
+    #[bench]
+    fn bench_pool(b: &mut Bencher) {
+        let matrix = giant_matrix(N as usize);
+        let mut pool = Pool::new(4);
+
+        b.iter(|| {
+            sum_thread_pool(&mut pool, &matrix, 4);
         })
     }
 
@@ -234,5 +278,12 @@ mod tests {
     fn test_rayon() {
         let matrix = small_matrix();
         assert_eq!(6, sum_rayon(&matrix));
+    }
+
+    #[test]
+    fn test_thread_pool() {
+        let matrix = small_matrix();
+        let mut pool = Pool::new(2);
+        assert_eq!(6, sum_thread_pool(&mut pool, &matrix, 2));
     }
 }
